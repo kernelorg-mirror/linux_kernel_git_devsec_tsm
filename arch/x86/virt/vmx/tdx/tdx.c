@@ -60,6 +60,8 @@ static LIST_HEAD(tdx_memlist);
 
 static struct tdx_sys_info tdx_sysinfo;
 
+static bool tdx_module_ext_initialized;
+
 typedef void (*sc_err_func_t)(u64 fn, u64 err, struct tdx_module_args *args);
 
 static inline void seamcall_err(u64 fn, u64 err, struct tdx_module_args *args)
@@ -1686,7 +1688,7 @@ static int tdx_ext_mem_setup(struct tdx_page_array *ext_mem)
 	return 0;
 }
 
-static int __maybe_unused init_tdx_ext(void)
+static int init_tdx_ext(void)
 {
 	struct tdx_page_array *ext_mem = NULL;
 	unsigned int nr_pages;
@@ -1740,6 +1742,37 @@ out_ext_mem:
 
 	return ret;
 }
+
+/**
+ * tdx_enable_ext - Enable TDX module extensions.
+ *
+ * This function can be called in parallel by multiple callers.
+ *
+ * Return 0 if TDX module extension is enabled successfully, otherwise error.
+ */
+int tdx_enable_ext(void)
+{
+	int ret;
+
+	guard(mutex)(&tdx_module_lock);
+	if (tdx_module_status != TDX_MODULE_INITIALIZED)
+		return -ENOENT;
+
+	if (tdx_module_ext_initialized)
+		return 0;
+
+	ret = init_tdx_ext();
+	if (ret) {
+		pr_err("module extension initialization failed (%d)\n", ret);
+		return ret;
+	}
+
+	pr_debug("module extension initialized\n");
+	tdx_module_ext_initialized = true;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tdx_enable_ext);
 
 static bool is_pamt_page(unsigned long phys)
 {
