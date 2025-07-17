@@ -111,7 +111,13 @@ struct tsm_report_ops {
 int tsm_report_register(const struct tsm_report_ops *ops, void *priv);
 int tsm_report_unregister(const struct tsm_report_ops *ops);
 struct tsm_dev;
+struct pci_tsm_ops;
 struct tsm_dev *tsm_register(struct device *parent,
-			     const struct attribute_group **groups);
+			     const struct attribute_group **groups,
+			     struct pci_tsm_ops *ops);
 void tsm_unregister(struct tsm_dev *tsm_dev);
+const char *tsm_name(const struct tsm_dev *tsm_dev);
+struct tsm_dev *find_tsm_dev(int id);
+const struct pci_tsm_ops *tsm_pci_ops(const struct tsm_dev *tsm_dev);
+const struct attribute_group *tsm_pci_group(const struct tsm_dev *tsm_dev);
 #endif /* __TSM_H */
