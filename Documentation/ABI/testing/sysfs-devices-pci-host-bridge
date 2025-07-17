@@ -17,3 +17,19 @@ Description:
 		PNP0A08 (/sys/devices/LNXSYSTM:00/LNXSYBUS:00/PNP0A08:00). See
 		/sys/devices/pciDDDD:BB entry for details about the DDDD:BB
 		format.
+
+What:		pciDDDD:BB/streamH.R.E
+Contact:	linux-pci@vger.kernel.org
+Description:
+		(RO) When a platform has established a secure connection, PCIe
+		IDE, between two Partner Ports, this symlink appears. The
+		primary function is to account the stream slot / resources
+		consumed in each of the (H)ost bridge, (R)oot Port and
+		(E)ndpoint that will be freed when invoking the tsm/disconnect
+		flow. The link points to the endpoint PCI device in the
+		Selective IDE Stream. "R" and "E" represent the assigned
+		Selective IDE Stream Register Block in the Root Port and
+		Endpoint, and "H" represents a platform specific pool of stream
+		resources shared by the Root Ports in a host bridge. See
+		/sys/devices/pciDDDD:BB entry for details about the DDDD:BB
+		format.
