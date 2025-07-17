@@ -5,6 +5,7 @@
 
 #define dev_fmt(fmt) "PCI/IDE: " fmt
 #include <linux/pci.h>
+#include <linux/tsm.h>
 #include <linux/sysfs.h>
 #include <linux/pci-ide.h>
 #include <linux/bitfield.h>
@@ -270,6 +271,9 @@ void pci_ide_stream_release(struct pci_ide *ide)
 
 	if (ide->partner[PCI_IDE_EP].enable)
 		pci_ide_stream_disable(pdev, ide);
+
+	if (ide->tsm_dev)
+		tsm_ide_stream_unregister(ide);
 
 	if (ide->partner[PCI_IDE_RP].setup)
 		pci_ide_stream_teardown(rp, ide);
