@@ -338,6 +338,66 @@ int pci_tsm_bind(struct pci_dev *pdev, struct kvm *kvm, u32 tdi_id)
 }
 EXPORT_SYMBOL_GPL(pci_tsm_bind);
 
+/**
+ * pci_tsm_guest_req() - helper to marshal guest requests to the TSM driver
+ * @pdev: @pdev representing a bound tdi
+ * @scope: security model scope for the TVM request
+ * @req_in: Input payload forwarded from the guest
+ * @in_len: Length of @req_in
+ * @out_len: Output length of the returned response payload
+ *
+ * This is a common entry point for KVM service handlers in userspace responding
+ * to TDI information or state change requests. The scope parameter limits
+ * requests to TDISP state management, or limited debug.
+ *
+ * Returns a pointer to the response payload on success, @req_in if there is no
+ * response to a successful request, or an ERR_PTR() on failure.
+ *
+ * Caller is responsible for kvfree() on the result when @ret != @req_in and
+ * !IS_ERR_OR_NULL(@ret).
+ *
+ * Context: Caller is responsible for calling this within the pci_tsm_bind()
+ * state of the TDI.
+ */
+void *pci_tsm_guest_req(struct pci_dev *pdev, enum pci_tsm_req_scope scope,
+			void *req_in, size_t in_len, size_t *out_len)
+{
+	const struct pci_tsm_ops *ops;
+	struct pci_tsm_pf0 *tsm_pf0;
+	struct pci_tdi *tdi;
+	int rc;
+
+	/*
+	 * Forbid requests that are not directly related to TDISP
+	 * operations
+	 */
+	if (scope > PCI_TSM_REQ_STATE_CHANGE)
+		return ERR_PTR(-EINVAL);
+
+	ACQUIRE(rwsem_read_intr, lock)(&pci_tsm_rwsem);
+	if ((rc = ACQUIRE_ERR(rwsem_read_intr, &lock)))
+		return ERR_PTR(rc);
+
+	if (!pdev->tsm)
+		return ERR_PTR(-ENXIO);
+
+	ops = pdev->tsm->ops;
+
+	if (!is_link_tsm(ops->owner))
+		return ERR_PTR(-ENXIO);
+
+	tsm_pf0 = to_pci_tsm_pf0(pdev->tsm);
+	ACQUIRE(mutex_intr, ops_lock)(&tsm_pf0->lock);
+	if ((rc = ACQUIRE_ERR(mutex_intr, &ops_lock)))
+		return ERR_PTR(rc);
+
+	tdi = pdev->tsm->tdi;
+	if (!tdi)
+		return ERR_PTR(-ENXIO);
+	return ops->guest_req(pdev, scope, req_in, in_len, out_len);
+}
+EXPORT_SYMBOL_GPL(pci_tsm_guest_req);
+
 static void pci_tsm_unbind_all(struct pci_dev *pdev)
 {
 	pci_tsm_walk_fns_reverse(pdev, __pci_tsm_unbind, NULL);
