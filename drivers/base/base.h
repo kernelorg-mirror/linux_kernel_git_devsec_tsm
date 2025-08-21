@@ -99,6 +99,8 @@ struct driver_private {
  *		    resources needed by the device; typically because it depends
  *		    on another driver getting probed first.
  * @async_driver: pointer to device driver awaiting probe via async_probe
+ * @cc_accepted: track the TEE acceptance state of the device for deferred
+ *		 probing, MMIO mapping type, and SWIOTLB bypass for private memory DMA.
  * @deferred_probe_reason: capture the -EPROBE_DEFER message emitted with
  *			   dev_err_probe() for later retrieval via debugfs
  * @device: pointer back to the struct device that this structure is
@@ -118,6 +120,9 @@ struct device_private {
 	struct list_head deferred_probe;
 	const struct device_driver *async_driver;
 	char *deferred_probe_reason;
+#ifdef CONFIG_CONFIDENTIAL_DEVICES
+	bool cc_accepted;
+#endif
 	struct device *device;
 	u8 dead:1;
 };
