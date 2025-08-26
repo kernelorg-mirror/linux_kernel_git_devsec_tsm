@@ -60,13 +60,17 @@ struct pci_tsm_ops {
 	 * struct pci_tsm_security_ops - Manage the security state of the function
 	 * @lock: probe and initialize the device in the LOCKED state
 	 * @unlock: destroy TSM context and return device to UNLOCKED state
+	 * @accept: accept a locked TDI for use, move it to RUN state
 	 *
 	 * Context: @lock and @unlock run under pci_tsm_rwsem held for write to
-	 * sync with TSM unregistration and each other
+	 * sync with TSM unregistration and each other. @accept runs under
+	 * pci_tsm_rwsem held for read. All operations run under the device lock
+	 * for mutual exclusion with driver attach and detach.
 	 */
 	struct_group_tagged(pci_tsm_security_ops, devsec_ops,
 		struct pci_tsm *(*lock)(struct pci_dev *pdev);
 		void (*unlock)(struct pci_dev *pdev);
+		int (*accept)(struct pci_dev *pdev);
 	);
 	struct tsm_dev *owner;
 };
@@ -97,6 +101,13 @@ struct pci_tdi {
  * sub-function (SR-IOV virtual function, or non-function0
  * multifunction-device), or a downstream endpoint (PCIe upstream switch-port as
  * DSM).
+ *
+ * For devsec operations it serves to indicate that the function / TDI has been
+ * locked to a given TSM.
+ *
+ * The common expectation is that there is only ever one TSM, but this is not
+ * enforced. The implementation only enforces that a device can be "connected"
+ * to a TSM instance or "locked" to a different TSM.
  */
 struct pci_tsm {
 	struct pci_dev *pdev;
@@ -115,6 +126,16 @@ struct pci_tsm_pf0 {
 	struct pci_tsm base;
 	struct mutex lock;
 	struct pci_doe_mb *doe_mb;
+};
+
+/**
+ * struct pci_tsm_devsec - context for tracking private/accepted PCI resources
+ * @base: generic core "tsm" context
+ * @resource: encrypted MMIO resources for this assigned device
+ */
+struct pci_tsm_devsec {
+	struct pci_tsm base;
+	struct resource *resource[PCI_NUM_RESOURCES];
 };
 
 /* physical function0 and capable of 'connect' */
@@ -193,6 +214,8 @@ int pci_tsm_link_constructor(struct pci_dev *pdev, struct pci_tsm *tsm,
 			     const struct pci_tsm_ops *ops);
 int pci_tsm_pf0_constructor(struct pci_dev *pdev, struct pci_tsm_pf0 *tsm,
 			    const struct pci_tsm_ops *ops);
+int pci_tsm_devsec_constructor(struct pci_dev *pdev, struct pci_tsm_devsec *tsm,
+			       const struct pci_tsm_ops *ops);
 void pci_tsm_pf0_destructor(struct pci_tsm_pf0 *tsm);
 int pci_tsm_bind(struct pci_dev *pdev, struct kvm *kvm, u32 tdi_id);
 void pci_tsm_unbind(struct pci_dev *pdev);
