@@ -65,14 +65,18 @@ struct pci_tsm_ops {
 	 *	  pci_tsm') for follow-on security state transitions from the
 	 *	  LOCKED state
 	 * @unlock: destroy TSM context and return device to UNLOCKED state
+	 * @accept: accept a locked TDI for use, move it to RUN state
 	 *
 	 * Context: @lock and @unlock run under pci_tsm_rwsem held for write to
-	 * sync with TSM unregistration and each other
+	 * sync with TSM unregistration and each other. @accept runs under
+	 * pci_tsm_rwsem held for read. All operations run under the device lock
+	 * for mutual exclusion with driver attach and detach.
 	 */
 	struct_group_tagged(pci_tsm_devsec_ops, devsec_ops,
 		struct pci_tsm *(*lock)(struct tsm_dev *tsm_dev,
 					struct pci_dev *pdev);
 		void (*unlock)(struct pci_tsm *tsm);
+		int (*accept)(struct pci_dev *pdev);
 	);
 };
 
@@ -103,6 +107,13 @@ struct pci_tdi {
  * sub-function (SR-IOV virtual function, or non-function0
  * multifunction-device), or a downstream endpoint (PCIe upstream switch-port as
  * DSM).
+ *
+ * For devsec operations it serves to indicate that the function / TDI has been
+ * locked to a given TSM.
+ *
+ * The common expectation is that there is only ever one TSM, but this is not
+ * enforced. The implementation only enforces that a device can be "connected"
+ * to a TSM instance or "locked" to a different TSM.
  */
 struct pci_tsm {
 	struct pci_dev *pdev;
@@ -121,6 +132,16 @@ struct pci_tsm_pf0 {
 	struct pci_tsm base_tsm;
 	struct mutex lock;
 	struct pci_doe_mb *doe_mb;
+};
+
+/**
+ * struct pci_tsm_devsec - context for tracking private/accepted PCI resources
+ * @base_tsm: generic core "tsm" context
+ * @resource: encrypted MMIO resources for this assigned device
+ */
+struct pci_tsm_devsec {
+	struct pci_tsm base_tsm;
+	struct resource *resource[PCI_NUM_RESOURCES];
 };
 
 /* physical function0 and capable of 'connect' */
@@ -204,6 +225,8 @@ int pci_tsm_link_constructor(struct pci_dev *pdev, struct pci_tsm *tsm,
 			     struct tsm_dev *tsm_dev);
 int pci_tsm_pf0_constructor(struct pci_dev *pdev, struct pci_tsm_pf0 *tsm,
 			    struct tsm_dev *tsm_dev);
+int pci_tsm_devsec_constructor(struct pci_dev *pdev, struct pci_tsm_devsec *tsm,
+			       struct tsm_dev *tsm_dev);
 void pci_tsm_pf0_destructor(struct pci_tsm_pf0 *tsm);
 int pci_tsm_doe_transfer(struct pci_dev *pdev, u8 type, const void *req,
 			 size_t req_sz, void *resp, size_t resp_sz);
@@ -214,6 +237,14 @@ void pci_tsm_tdi_constructor(struct pci_dev *pdev, struct pci_tdi *tdi,
 int pci_tsm_guest_req(struct pci_dev *pdev, enum pci_tsm_req_scope scope,
 		      const void *req_in, size_t in_len, void *req_out,
 		      size_t *out_len, u64 *tsm_code);
+struct resource **pci_tsm_alloc_encrypted_resources(struct pci_dev *pdev,
+						    struct resource **__res);
+struct pci_tsm_devsec *to_pci_tsm_devsec(struct pci_tsm *tsm);
+void pci_tsm_set_encrypted_resources(struct pci_tsm_devsec *tsm,
+				     struct resource **res);
+void pci_tsm_free_encrypted_resources(struct resource **res);
+DEFINE_FREE(pci_tsm_free_encrypted_resources, struct resource **,
+	    if (_T) pci_tsm_free_encrypted_resources(_T))
 #else
 static inline int pci_tsm_register(struct tsm_dev *tsm_dev)
 {
