@@ -1260,6 +1260,35 @@ static void devsec_sysfs_enable(struct pci_dev *pdev)
 	sysfs_update_group(&pdev->dev.kobj, &pci_tsm_attr_group);
 }
 
+static void announce_tsm_staging(void)
+{
+	static int once;
+
+	if (once)
+		return;
+	once = 1;
+
+	pr_warn("\n");
+	pr_warn("**********************************************************\n");
+	pr_warn("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
+	pr_warn("**                                                      **\n");
+	pr_warn("** The tsm.git#staging branch is an unstable            **\n");
+	pr_warn("** DEVELOPMENT kernel for the PCI TEE I/O capabalities  **\n");
+	pr_warn("** of various platforms. See the \"Maturity Map\" in    **\n");
+	pr_warn("** Documentation/driver-api/pci/tsm.rst for the         **\n");
+	pr_warn("** relative maturity of the components.                 **\n");
+	pr_warn("**                                                      **\n");
+	pr_warn("** If you see this message and are not debugging        **\n");
+	pr_warn("** work-in-progress PCI/TSM features report this        **\n");
+	pr_warn("** immediately to your kernel vendor!                   **\n");
+	pr_warn("**                                                      **\n");
+	pr_warn("** Report test results and other feedback to            **\n");
+	pr_warn("** linux-coco@lists.linux.dev.                          **\n");
+	pr_warn("**                                                      **\n");
+	pr_warn("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
+	pr_warn("**********************************************************\n");
+}
+
 int pci_tsm_register(struct tsm_dev *tsm_dev)
 {
 	struct pci_dev *pdev = NULL;
@@ -1275,6 +1304,8 @@ int pci_tsm_register(struct tsm_dev *tsm_dev)
 		return -EINVAL;
 
 	guard(rwsem_write)(&pci_tsm_rwsem);
+
+	announce_tsm_staging();
 
 	/* On first enable, update sysfs groups */
 	if (is_link_tsm(tsm_dev) && pci_tsm_link_count++ == 0) {
