@@ -750,6 +750,10 @@ int pci_tsm_pf0_constructor(struct pci_dev *pdev, struct pci_tsm_pf0 *tsm,
 		pci_warn(pdev, "TSM init failure, no CMA mailbox\n");
 		return -ENODEV;
 	}
+	tsm->doe_mb_sec = pci_find_doe_mailbox(pdev, PCI_VENDOR_ID_PCI_SIG,
+					       PCI_DOE_FEATURE_SSESSION);
+	if (!tsm->doe_mb_sec)
+		pci_warn(pdev, "TSM init failed to init SSESSION mailbox\n");
 
 	return pci_tsm_link_constructor(pdev, &tsm->base_tsm, tsm_dev);
 }
