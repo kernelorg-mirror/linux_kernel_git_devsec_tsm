@@ -995,6 +995,7 @@ void *snp_alloc_firmware_page(gfp_t mask);
 void snp_free_firmware_page(void *addr);
 void sev_platform_shutdown(void);
 bool sev_is_snp_ciphertext_hiding_supported(void);
+int snp_reclaim_pages(unsigned long paddr, unsigned int npages, bool locked);
 
 #else	/* !CONFIG_CRYPTO_DEV_SP_PSP */
 
@@ -1032,6 +1033,11 @@ static inline void snp_free_firmware_page(void *addr) { }
 static inline void sev_platform_shutdown(void) { }
 
 static inline bool sev_is_snp_ciphertext_hiding_supported(void) { return false; }
+
+static inline int snp_reclaim_pages(unsigned long paddr, unsigned int npages, bool locked)
+{
+	return -ENODEV;
+}
 
 #endif	/* CONFIG_CRYPTO_DEV_SP_PSP */
 
