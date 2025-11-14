@@ -10,6 +10,14 @@ struct tsm_dev;
 struct kvm;
 enum pci_tsm_req_scope;
 
+/* SPDM control structure for DOE */
+struct tsm_spdm {
+	unsigned long req_len;
+	void *req;
+	unsigned long rsp_len;
+	void *rsp;
+};
+
 /*
  * struct pci_tsm_ops - manage confidential links and security state
  * @link_ops: Coordinate PCIe SPDM and IDE establishment via a platform TSM.
@@ -130,11 +138,17 @@ struct pci_tsm {
  * @base_tsm: generic core "tsm" context
  * @lock: mutual exclustion for pci_tsm_ops invocation
  * @doe_mb: PCIe Data Object Exchange mailbox
+ * @doe_mb_sec: DOE mailbox used when secured SPDM is requested
+ * @spdm: cached SPDM request/response buffers for the link
+ * @cert_slot: SPDM certificate slot
  */
 struct pci_tsm_pf0 {
 	struct pci_tsm base_tsm;
 	struct mutex lock;
 	struct pci_doe_mb *doe_mb;
+	struct pci_doe_mb *doe_mb_sec;
+	struct tsm_spdm spdm;
+	u8 cert_slot;
 };
 
 struct pci_tsm_mmio {
