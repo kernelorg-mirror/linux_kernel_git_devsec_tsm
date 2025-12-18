@@ -1618,7 +1618,7 @@ EXPORT_SYMBOL_FOR_KVM(tdx_enable);
  */
 static void tdx_clflush_page(struct page *page)
 {
-	clflush_cache_range(page_to_virt(page), PAGE_SIZE);
+	clflush_cache_range(page_to_virt(page), page_size(page));
 }
 
 static void tdx_clflush_page_array(struct tdx_page_array *array)
